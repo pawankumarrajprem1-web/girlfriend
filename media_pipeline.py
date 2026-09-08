@@ -24,7 +24,8 @@ class AdvancedMediaPipelineManager:
     def generate_aesthetic_image(self, aesthetic_prompt_modifier):
         """Interacts with Stability AI SDXL endpoint to generate immersive visual photographs."""
         try:
-            endpoint = "https://api.stability.v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image"
+            # Updated to the correct active Stability AI v1 endpoint to fix routing/photo response issues
+            endpoint = "https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image"
             headers = {
                 "Accept": "application/json",
                 "Authorization": f"Bearer {self.stability_api_key}",
@@ -61,7 +62,7 @@ class AdvancedMediaPipelineManager:
                     logger.info("Image successfully generated and decoded into binary stream.")
                     return io.BytesIO(binary_data)
             
-            logger.warning(f"Stability AI responded with non-200 status code: {response.status_code}")
+            logger.warning(f"Stability AI responded with non-200 status code: {response.status_code}, Response text: {response.text}")
             return None
 
         except Exception as error:
