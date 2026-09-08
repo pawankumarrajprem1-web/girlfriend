@@ -1,59 +1,109 @@
 # ==============================================================================
-# FILE NAME: gemini_handler.py
-# DESCRIPTION: High-Performance Google Gemini Neural Processing Module
+# FILE NAME: media_pipeline.py
+# DESCRIPTION: Stability AI Image Generation & ElevenLabs Neural TTS Pipeline
 # ==============================================================================
+import os
+import random
+import io
+import base64
+import requests
 import logging
-import google.generativeai as genai
-from persona_engine import VirtualGirlfriendPersonaMatrix
 
-logger = logging.getLogger("GeminiEngine")
+logger = logging.getLogger("MediaPipeline")
 
-class GeminiChatBrain:
+class AdvancedMediaPipelineManager:
     """
-    Manages stateful conversational chat sessions via Google's generative AI SDK,
-    providing lightning-fast secondary reasoning and fallback intelligence.
+    Handles asynchronous external API calls to Stability AI for hyper-realistic visual rendering
+    and ElevenLabs for human-like emotional voice note generation.
     """
-    def __init__(self, api_key, partner_name="Ananya"):
-        logger.info("Initializing GeminiChatBrain subsystem...")
-        self.api_key = api_key
-        genai.configure(api_key=self.api_key)
-        
-        self.persona_matrix = VirtualGirlfriendPersonaMatrix(partner_name=partner_name)
-        self.system_prompt = self.persona_matrix.build_master_system_prompt()
-        
-        # Generation hyper-parameters for human-like creative variation
-        self.generation_config = {
-            "temperature": 0.95,
-            "top_p": 0.95,
-            "top_k": 50,
-            "max_output_tokens": 550,
-        }
-        
-        self.model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
-            generation_config=self.generation_config,
-            system_instruction=self.system_prompt
-        )
-        
-        # User session tracking maps
-        self.active_sessions = {}
+    def __init__(self, stability_key, elevenlabs_key):
+        logger.info("Initializing AdvancedMediaPipelineManager...")
+        self.stability_api_key = stability_key
+        self.elevenlabs_api_key = elevenlabs_key
 
-    def get_chat_response(self, user_id, user_message):
-        """Processes incoming user text and fetches response via Google Gemini active session."""
+    def generate_aesthetic_image(self, aesthetic_prompt_modifier):
+        """Interacts with Stability AI endpoint to generate immersive visual photographs."""
         try:
-            if user_id not in self.active_sessions:
-                logger.info(f"Initializing new Gemini stateful session for user ID: {user_id}")
-                self.active_sessions[user_id] = self.model.start_chat(history=[])
+            # Updated v2beta endpoint for stability ai to prevent 404/failures
+            endpoint = "https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image"
+            headers = {
+                "Accept": "application/json",
+                "Authorization": f"Bearer {self.stability_api_key}",
+                "Content-Type": "application/json"
+            }
             
-            chat_session = self.active_sessions[user_id]
-            logger.debug(f"Sending prompt to Gemini API for user {user_id}...")
-            response = chat_session.send_message(user_message)
+            payload = {
+                "steps": 30,
+                "width": 512,
+                "height": 512,
+                "seed": random.randint(10000, 999999),
+                "cfg_scale": 7.0,
+                "samples": 1,
+                "text_prompts": [
+                    {
+                        "text": f"Beautiful young woman, realistic human face, highly detailed skin texture, {aesthetic_prompt_modifier}, photorealistic, masterpiece, 4k resolution, natural lighting",
+                        "weight": 1.0
+                    },
+                    {
+                        "text": "bad anatomy, deformed, mutated, extra fingers, blurry, low quality, cartoon, anime",
+                        "weight": -1.0
+                    }
+                ]
+            }
             
-            logger.info(f"Successfully retrieved Gemini response for user ID: {user_id}")
-            return response.text
+            logger.info(f"Dispatching image rendering request to Stability AI with modifier: {aesthetic_prompt_modifier}")
+            response = requests.post(endpoint, json=payload, headers=headers, timeout=40)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "artifacts" in data and len(data["artifacts"]) > 0:
+                    base64_img = data["artifacts"][0]["base64"]
+                    binary_data = base64.b64decode(base64_img)
+                    logger.info("Image successfully generated and decoded into binary stream.")
+                    return io.BytesIO(binary_data)
+            
+            logger.warning(f"Stability AI responded with non-200 status code: {response.status_code}, Response: {response.text}")
+            return None
 
-        except Exception as api_error:
-            logger.error(f"Critical exception inside GeminiChatBrain for user {user_id}: {api_error}")
-            fallbacks = self.persona_matrix.get_emotional_fallback_phrases()
-            import random
-            return random.choice(fallbacks)
+        except Exception as error:
+            logger.error(f"Exception encountered during image generation pipeline execution: {error}")
+            return None
+
+    def generate_emotional_voice_note(self, spoken_text_script):
+        """Interacts with ElevenLabs REST API to render expressive voice clips."""
+        try:
+            voice_id = "21m00Tcm4TlvDq8ikWAM"
+            endpoint = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+            
+            headers = {
+                "Accept": "audio/mpeg",
+                "Content-Type": "application/json",
+                "xi-api-key": self.elevenlabs_api_key
+            }
+            
+            payload = {
+                "text": spoken_text_script,
+                "model_id": "eleven_multilingual_v2",
+                "voice_settings": {
+                    "stability": 0.45,
+                    "similarity_boost": 0.80,
+                    "style": 0.35,
+                    "use_speaker_boost": True
+                }
+            }
+            
+            logger.info("Dispatching text-to-speech rendering payload to ElevenLabs API...")
+            response = requests.post(endpoint, json=payload, headers=headers, timeout=40)
+            
+            if response.status_code == 200:
+                audio_buffer = io.BytesIO(response.content)
+                audio_buffer.name = "voice_note.mp3"
+                logger.info("Voice note successfully generated and buffered.")
+                return audio_buffer
+            
+            logger.warning(f"ElevenLabs TTS API responded with non-200 status: {response.status_code}")
+            return None
+
+        except Exception as error:
+            logger.error(f"Exception encountered during voice note generation pipeline execution: {error}")
+            return None
