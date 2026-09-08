@@ -22,7 +22,7 @@ class CoreSystemConfiguration:
         
         self.GIRLFRIEND_NAME = "Ananya"
         self.PORT = int(os.environ.get("PORT", 5000))
-        self.ACTIVE_AI_ENGINE = "gemini" # Always default to free Gemini engine
+        self.ACTIVE_AI_ENGINE = "gemini"
 
     def export_summary(self):
         return {
