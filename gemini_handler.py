@@ -44,5 +44,4 @@ class GeminiChatBrain:
         except Exception as api_error:
             logger.error(f"Gemini API error for user {user_id}: {api_error}")
             fallbacks = self.persona_matrix.get_emotional_fallback_phrases()
-            import random
             return random.choice(fallbacks)
